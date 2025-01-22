@@ -9,8 +9,14 @@ import { creatGallery } from './js/render-functions';
 const form = document.querySelector('.form-search');
 const gallery = document.querySelector('.gallery');
 const loader = document.querySelector('.loader');
+const btnLoadMore = document.querySelector('.load-more');
 
 loader.style.display = 'none';
+btnLoadMore.style.display = 'none';
+
+let currentQuery = '';
+let page = 1;
+const perPage = 15;
 
 const galleryModal = new SimpleLightbox('.gallery a', {
   captions: true,
@@ -18,14 +24,15 @@ const galleryModal = new SimpleLightbox('.gallery a', {
   captionDelay: 250,
 });
 
-const handlerSearch = event => {
+const handlerSearch = async event => {
   event.preventDefault();
 
-  let question = event.target.elements.user_query.value.trim(); // input world
+  currentQuery = event.target.elements.user_query.value.trim();
+  page = 1; // Скидаємо значення сторінки на початкове
+  gallery.innerHTML = ''; // Очищення галереї
+  btnLoadMore.style.display = 'none'; // Ховаємо кнопку "Load more"
 
-  gallery.innerHTML = ' ';
-
-  if (!question) {
+  if (!currentQuery) {
     iziToast.show({
       backgroundColor: '#EF4040',
       message: `Enter the data for the search!`,
@@ -37,36 +44,80 @@ const handlerSearch = event => {
 
   loader.style.display = 'inline-block';
 
-  fetchPhotosByQuery(question) // promise
-    .then(data => {
-      if (data.hits.length === 0) {
-        iziToast.show({
-          title: '',
-          backgroundColor: '#EF4040',
-          messageColor: '#FFFFFF',
-          message: `Sorry, there are no images matching your search query. Please try again!`,
-          position: 'topCenter',
-        });
-      }
+  try {
+    const data = await fetchPhotosByQuery(currentQuery, page, perPage);
 
-      gallery.insertAdjacentHTML('beforeend', creatGallery(data.hits));
-      galleryModal.refresh();
-      loader.style.display = 'none';
-    })
-    .catch(error => {
-      console.log(error.message);
-      iziToast.error({
-        title: 'Error',
-        message: 'Something went wrong. Please try again later!',
-        position: 'topCenter',
+    if (data.hits.length === 0) {
+      iziToast.show({
         backgroundColor: '#EF4040',
+        message: `Sorry, there are no images matching your search query. Please try again!`,
         messageColor: '#FFFFFF',
+        position: 'topCenter',
       });
-    })
-    .finally(() => {
-      event.target.reset();
-      loader.style.display = 'none';
+      return;
+    }
+
+    gallery.insertAdjacentHTML('beforeend', creatGallery(data.hits));
+    galleryModal.refresh();
+
+    // Показуємо кнопку "Load more", якщо дані є
+    if (data.hits.length >= perPage) {
+      btnLoadMore.style.display = 'block';
+    }
+  } catch (error) {
+    console.error(error.message);
+    iziToast.error({
+      title: 'Error',
+      message: 'Something went wrong. Please try again later!',
+      position: 'topCenter',
+      backgroundColor: '#EF4040',
+      messageColor: '#FFFFFF',
     });
+  } finally {
+    loader.style.display = 'none';
+    event.target.reset();
+  }
+};
+
+const loadImgMore = async () => {
+  page += 1; // Збільшуємо значення сторінки
+
+  loader.style.display = 'inline-block';
+  btnLoadMore.style.display = 'none'; // Ховаємо кнопку на час завантаження
+
+  try {
+    const data = await fetchPhotosByQuery(currentQuery, page, perPage);
+
+    if (data.hits.length === 0) {
+      iziToast.show({
+        backgroundColor: '#EF4040',
+        message: `No more images to load.`,
+        messageColor: '#FFFFFF',
+        position: 'topCenter',
+      });
+      return;
+    }
+
+    gallery.insertAdjacentHTML('beforeend', creatGallery(data.hits));
+    galleryModal.refresh();
+
+    // Показуємо кнопку "Load more", якщо є більше зображень
+    if (data.hits.length >= perPage) {
+      btnLoadMore.style.display = 'block';
+    }
+  } catch (error) {
+    console.error(error.message);
+    iziToast.error({
+      title: 'Error',
+      message: 'Something went wrong. Please try again later!',
+      position: 'topCenter',
+      backgroundColor: '#EF4040',
+      messageColor: '#FFFFFF',
+    });
+  } finally {
+    loader.style.display = 'none';
+  }
 };
 
 form.addEventListener('submit', handlerSearch);
+btnLoadMore.addEventListener('click', loadImgMore);
