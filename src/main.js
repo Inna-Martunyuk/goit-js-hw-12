@@ -17,6 +17,7 @@ btnLoadMore.style.display = 'none';
 let currentQuery = '';
 let page = 1;
 const perPage = 15;
+let totalHits = 0;
 
 const galleryModal = new SimpleLightbox('.gallery a', {
   captions: true,
@@ -28,9 +29,9 @@ const handlerSearch = async event => {
   event.preventDefault();
 
   currentQuery = event.target.elements.user_query.value.trim();
-  page = 1; // Скидаємо значення сторінки на початкове
-  gallery.innerHTML = ''; // Очищення галереї
-  btnLoadMore.style.display = 'none'; // Ховаємо кнопку "Load more"
+  page = 1;
+  gallery.innerHTML = '';
+  btnLoadMore.style.display = 'none';
 
   if (!currentQuery) {
     iziToast.show({
@@ -57,6 +58,7 @@ const handlerSearch = async event => {
       return;
     }
 
+    totalHits = data.totalHits;
     gallery.insertAdjacentHTML('beforeend', creatGallery(data.hits));
     galleryModal.refresh();
 
@@ -64,6 +66,13 @@ const handlerSearch = async event => {
     if (data.hits.length >= perPage) {
       btnLoadMore.style.display = 'block';
     }
+
+    iziToast.show({
+      backgroundColor: '#28a745',
+      message: `Hooray! We found ${totalHits} images.`,
+      messageColor: '#FFFFFF',
+      position: 'topRight',
+    });
   } catch (error) {
     console.error(error.message);
     iziToast.error({
@@ -80,10 +89,10 @@ const handlerSearch = async event => {
 };
 
 const loadImgMore = async () => {
-  page += 1; // Збільшуємо значення сторінки
+  page += 1;
 
   loader.style.display = 'inline-block';
-  btnLoadMore.style.display = 'none'; // Ховаємо кнопку на час завантаження
+  btnLoadMore.style.display = 'none';
 
   try {
     const data = await fetchPhotosByQuery(currentQuery, page, perPage);
@@ -98,7 +107,6 @@ const loadImgMore = async () => {
       return;
     }
 
-    // Додаємо нові зображення в галерею
     gallery.insertAdjacentHTML('beforeend', creatGallery(data.hits));
     galleryModal.refresh();
 
@@ -112,9 +120,20 @@ const loadImgMore = async () => {
       });
     }
 
-    // Показуємо кнопку "Load more", якщо є більше зображень
-    if (data.hits.length >= perPage) {
-      btnLoadMore.style.display = 'block';
+    // Перевірка, чи завантажено всі зображення
+    const totalLoaded = document.querySelectorAll(
+      '.gallery .gallery-item'
+    ).length;
+    if (totalLoaded >= totalHits) {
+      btnLoadMore.style.display = 'none';
+      iziToast.show({
+        backgroundColor: '#EF4040',
+        message: `We're sorry, but you've reached the end of search results.`,
+        messageColor: '#FFFFFF',
+        position: 'topCenter',
+      });
+    } else {
+      btnLoadMore.style.display = 'block'; // Показуємо кнопку, якщо ще є зображення
     }
   } catch (error) {
     console.error(error.message);
