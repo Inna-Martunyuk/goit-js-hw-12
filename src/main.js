@@ -98,8 +98,19 @@ const loadImgMore = async () => {
       return;
     }
 
+    // Додаємо нові зображення в галерею
     gallery.insertAdjacentHTML('beforeend', creatGallery(data.hits));
     galleryModal.refresh();
+
+    // Плавне прокручування сторінки
+    const galleryItem = document.querySelector('.gallery .gallery-item');
+    if (galleryItem) {
+      const { height } = galleryItem.getBoundingClientRect();
+      window.scrollBy({
+        top: height * 2,
+        behavior: 'smooth',
+      });
+    }
 
     // Показуємо кнопку "Load more", якщо є більше зображень
     if (data.hits.length >= perPage) {
